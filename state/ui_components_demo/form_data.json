@@ -1,0 +1,67 @@
+{
+  "volume_slider": {
+    "value": "50",
+    "type": "input",
+    "timestamp": 1750660904.6626024
+  },
+  "temp_slider": {
+    "value": "20",
+    "type": "input",
+    "timestamp": 1750660904.6626024
+  },
+  "progress_slider": {
+    "value": "75",
+    "type": "input",
+    "timestamp": 1750660904.6626024
+  },
+  "opacity_slider": {
+    "value": "0.8",
+    "type": "input",
+    "timestamp": 1750660904.6626024
+  },
+  "newsletter_cb": {
+    "value": false,
+    "type": "checkbox",
+    "timestamp": 1750660904.6626024
+  },
+  "notifications_cb": {
+    "value": true,
+    "type": "checkbox",
+    "timestamp": 1750660904.6626024
+  },
+  "darkmode_cb": {
+    "value": false,
+    "type": "checkbox",
+    "timestamp": 1750660904.6626024
+  },
+  "terms_cb": {
+    "value": false,
+    "type": "checkbox",
+    "timestamp": 1750660904.6626024
+  },
+  "marketing_cb": {
+    "value": false,
+    "type": "checkbox",
+    "timestamp": 1750660904.6626024
+  },
+  "autosave_cb": {
+    "value": true,
+    "type": "checkbox",
+    "timestamp": 1750660904.6626024
+  },
+  "first_number": {
+    "value": "12",
+    "type": "input",
+    "timestamp": 1750664882.678117
+  },
+  "second_number": {
+    "value": "12",
+    "type": "input",
+    "timestamp": 1750664882.678117
+  },
+  "result_display": {
+    "value": "Result: 24.0",
+    "type": "input",
+    "timestamp": 1750660943.0459323
+  }
+}

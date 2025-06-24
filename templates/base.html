@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Flask UI{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- icon.svg -->
+    <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+    <style>
+        {
+            % block extra_css %
+        }
+
+            {
+            % endblock %
+        }
+    </style>
+</head>
+
+<body> <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <h1 class="navbar-title">{% block navbar_title %}{{ title }}{% endblock %}</h1>
+        </div>
+    </nav>
+
+    <!-- macOS Dock Style Navigation -->
+    {% if pages and pages|length > 1 %}
+    <nav class="dock-nav">
+        <ul class="navbar-nav">
+            {% for page in pages %}
+            <li class="nav-item">
+                <a href="/page/{{ page }}" class="nav-link {% if page == current_page %}active{% endif %}">{{ page
+                    }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </nav>
+    {% endif %}
+    <div class="container">
+        {% block header %}
+        <!-- <div class="content-wrapper">
+            <h1 class="page-title">{% block page_title %}Flask UI{% endblock %}</h1>
+        </div> -->
+        {% endblock %}
+
+        {% block content %}{% endblock %}
+    </div> {% block scripts %}
+    <script>
+        // State preservation variables
+        let preservedFormData = {};
+        let autoSaveInterval = null;
+
+        // Initialize preserved form data from server
+        {% if preserved_form_data %}
+        try {
+            preservedFormData = {{ preserved_form_data | safe }};
+        console.log('Loaded preserved form data:', Object.keys(preservedFormData).length, 'items');
+        } catch (e) {
+            console.warn('Failed to parse preserved form data:', e);
+            preservedFormData = {};
+        }
+        {% endif %}
+
+        // Auto-save form data function
+        function autoSaveFormData() {
+            const formData = collectAllFormData();
+            if (Object.keys(formData).length > 0) {
+                // Save to server
+                fetch('/api/preserve-form', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                }).catch(error => {
+                    console.warn('Auto-save failed:', error);
+                });
+
+                // Also save locally
+                preservedFormData = { ...preservedFormData, ...formData };
+                localStorage.setItem('flask_ui_form_data', JSON.stringify(preservedFormData));
+            }
+        }
+
+        // Collect all form data
+        function collectAllFormData() {
+            const inputs = document.querySelectorAll('input, select, textarea');
+            const formData = {};
+
+            inputs.forEach(input => {
+                if (input.id) {
+                    if (input.type === 'checkbox') {
+                        formData[input.id] = input.checked;
+                    } else if (input.type === 'radio') {
+                        if (input.checked && input.name) {
+                            formData[input.name] = input.value;
+                        }
+                    } else if (input.type !== 'file') {
+                        formData[input.id] = input.value;
+                    }
+                }
+            });
+
+            return formData;
+        }
+
+        // Restore form data from preserved state
+        function restoreFormData() {
+            console.log('Restoring form data...', Object.keys(preservedFormData).length, 'items');
+
+            for (const [componentId, value] of Object.entries(preservedFormData)) {
+                const element = document.getElementById(componentId);
+                if (element) {
+                    if (element.type === 'checkbox') {
+                        element.checked = Boolean(value);
+                    } else if (element.type === 'radio') {
+                        if (element.value === value) {
+                            element.checked = true;
+                        }
+                    } else if (element.type === 'range') {
+                        element.value = value;
+                        // Update slider display
+                        const valueDisplay = document.getElementById(element.id + '_value');
+                        if (valueDisplay) {
+                            valueDisplay.textContent = value;
+                        }
+                    } else if (element.tagName.toLowerCase() === 'input') {
+                        element.value = value;
+                    }
+                    console.log(`Restored ${componentId} = ${value}`);
+                } else {
+                    // Handle radio groups
+                    const radioButtons = document.querySelectorAll(`input[name="${componentId}"]`);
+                    if (radioButtons.length > 0) {
+                        radioButtons.forEach(radio => {
+                            radio.checked = (radio.value === value);
+                        });
+                        console.log(`Restored radio group ${componentId} = ${value}`);
+                    }
+                }
+            }
+        }
+
+        // Enhanced page navigation with state preservation
+        function navigateToPage(pageName) {
+            // Save current form data before navigation
+            const currentFormData = collectAllFormData();
+            const queryParams = new URLSearchParams();
+
+            if (Object.keys(currentFormData).length > 0) {
+                queryParams.append('form_data', JSON.stringify(currentFormData));
+            }
+
+            const url = `/page/${pageName}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            window.location.href = url;
+        }
+
+        // Override navigation links to use state preservation
+        function setupNavigationLinks() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const pageName = this.getAttribute('href').split('/').pop();
+                    navigateToPage(pageName);
+                });
+            });
+        }
+
+        async function handleButtonClick(buttonId) {
+            const button = document.getElementById(buttonId);
+            const container = document.querySelector('.grid-container');
+
+            // Collect form data from all inputs
+            const inputs = document.querySelectorAll('input');
+            const formData = new FormData(); // Use FormData for file uploads
+            let hasFiles = false; inputs.forEach(input => {
+                if (input.type === 'file') {
+                    // Handle file inputs - only selected files
+                    const selectedFiles = input.files;
+
+                    if (selectedFiles && selectedFiles.length > 0) {
+                        for (let i = 0; i < selectedFiles.length; i++) {
+                            formData.append(input.id, selectedFiles[i]);
+                        }
+                        hasFiles = true;
+                        console.log(`Added ${selectedFiles.length} files for ${input.id}`);
+                    }
+                } else if (input.type === 'checkbox' && input.id) {
+                    formData.append(input.id, input.checked);
+                } else if (input.type === 'radio') {
+                    // For radio buttons, always use name and only if checked
+                    if (input.checked && input.name) {
+                        formData.append(input.name, input.value);
+                    }
+                } else if (input.id) {
+                    // For other input types, use id
+                    formData.append(input.id, input.value);
+                }
+            });
+
+            // Debug: Log the form data and button ID
+            console.log('Button ID:', buttonId);
+            console.log('Has files:', hasFiles);
+
+            // Show loading state
+            button.classList.add('loading');
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = 'Loading...';
+
+            try {
+                const fetchOptions = {
+                    method: 'POST',
+                    body: formData // Send FormData directly (no need to set Content-Type header)
+                };
+
+                // If no files, convert FormData to JSON for backwards compatibility
+                if (!hasFiles) {
+                    const jsonData = {};
+                    for (let [key, value] of formData.entries()) {
+                        jsonData[key] = value;
+                    }
+                    fetchOptions.headers = {
+                        'Content-Type': 'application/json',
+                    };
+                    fetchOptions.body = JSON.stringify(jsonData);
+                } const response = await fetch(`/api/button/${buttonId}`, fetchOptions); const result = await response.json();
+                if (result.status === 'success') {
+                    console.log('Button callback result:', result.result);
+                    console.log('Component updates:', result.updates);
+
+                    // Apply any component updates
+                    if (result.updates) {
+                        for (const [componentId, value] of Object.entries(result.updates)) {
+                            updateComponent(componentId, value);
+                        }
+                    }
+
+                    // Update preserved form data if provided
+                    if (result.preserved_form_data) {
+                        preservedFormData = { ...preservedFormData, ...result.preserved_form_data };
+                        localStorage.setItem('flask_ui_form_data', JSON.stringify(preservedFormData));
+                        console.log('Updated preserved form data from server');
+                    }
+
+                    // Handle specific result displays based on button ID (legacy support)
+                    if (buttonId.includes('calculate') || buttonId.includes('clear_btn')) {
+                        const resultDisplay = document.getElementById('result_display');
+                        if (resultDisplay && result.result) {
+                            resultDisplay.textContent = result.result;
+                        }
+                    }
+
+                    if (buttonId.includes('submit_prefs') || buttonId.includes('clear_prefs')) {
+                        const preferencesDisplay = document.getElementById('preferences_display');
+                        if (preferencesDisplay && result.result) {
+                            preferencesDisplay.textContent = result.result;
+                        }
+                    }// Handle clear button specifically
+                    if (buttonId.includes('clear_btn')) {
+                        // Clear specific inputs and remove from preserved data
+                        const calculatorInputs = document.querySelectorAll('#first_number, #second_number');
+                        calculatorInputs.forEach(input => {
+                            input.value = '';
+                            if (preservedFormData[input.id]) {
+                                delete preservedFormData[input.id];
+                            }
+                        });
+
+                        // Clear calculator-specific form data
+                        const calcFields = ['calc_num1', 'calc_num2', 'calc_result'];
+                        calcFields.forEach(field => {
+                            if (preservedFormData[field]) {
+                                delete preservedFormData[field];
+                            }
+                        });
+
+                        // Update local storage
+                        localStorage.setItem('flask_ui_form_data', JSON.stringify(preservedFormData));
+
+                    } else if (buttonId.includes('clear_prefs')) {
+                        // Clear only preferences-related inputs
+                        const prefsInputs = document.querySelectorAll('#notifications, #dark_mode, #auto_save, input[name="theme"]');
+                        prefsInputs.forEach(input => {
+                            if (input.type === 'checkbox' || input.type === 'radio') {
+                                input.checked = false;
+                            } else {
+                                input.value = '';
+                            }
+
+                            // Remove from preserved data
+                            if (preservedFormData[input.id]) {
+                                delete preservedFormData[input.id];
+                            }
+                            if (input.name && preservedFormData[input.name]) {
+                                delete preservedFormData[input.name];
+                            }
+                        });
+
+                        // Reset volume slider to default
+                        const volumeSlider = document.getElementById('volume_slider');
+                        if (volumeSlider) {
+                            volumeSlider.value = 50;
+                            if (preservedFormData['volume_slider']) {
+                                delete preservedFormData['volume_slider'];
+                            }
+                        }
+
+                        // Reset radio buttons to default (light theme)
+                        const lightThemeRadio = document.querySelector('input[name="theme"][value="light"]');
+                        if (lightThemeRadio) {
+                            lightThemeRadio.checked = true;
+                            preservedFormData['theme'] = 'light';
+                        }
+
+                        // Update local storage
+                        localStorage.setItem('flask_ui_form_data', JSON.stringify(preservedFormData));
+                    }
+
+                    // You can add more UI feedback here
+                    {% block on_success %} {% endblock %}
+                } else {
+                    console.error('Button callback error:', result.message);
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                alert('Network error: ' + error.message);
+            } finally {
+                // Restore button state
+                button.classList.remove('loading');
+                button.disabled = false;
+                button.textContent = originalText;
+            }
+        }        // Function to update component values programmatically
+        function updateComponent(componentId, value) {
+            console.log(`Attempting to update component ${componentId} with value: ${value}`);
+            const element = document.getElementById(componentId);
+
+            if (element) {
+                console.log(`Found element with ID ${componentId}:`, element.tagName);
+
+                if (element.type === 'checkbox') {
+                    element.checked = Boolean(value);
+                } else if (element.type === 'radio') {
+                    if (element.value === value) {
+                        element.checked = true;
+                    }
+                } else if (element.type === 'range') {
+                    // Handle slider
+                    element.value = value;
+                    // Update the slider value display
+                    const valueDisplay = document.getElementById(element.id + '_value');
+                    if (valueDisplay) {
+                        valueDisplay.textContent = value;
+                    }
+                } else if (element.tagName.toLowerCase() === 'img') {
+                    // Handle direct image updates
+                    console.log(`Updating image src from ${element.src} to ${value}`);
+                    element.src = value;
+                } else {
+                    // Check if this element contains an image (for image containers)
+                    const img = element.querySelector('img');
+                    if (img) {
+                        console.log(`Found image inside container, updating src from ${img.src} to ${value}`);
+                        img.src = value;
+                    } else {
+                        // Handle text inputs and text elements
+                        if (element.tagName.toLowerCase() === 'input') {
+                            element.value = value;
+                        } else {
+                            element.textContent = value;
+                        }
+                    }
+                }
+                console.log(`Successfully updated component ${componentId}`);
+            } else {
+                console.warn(`Element with ID ${componentId} not found`);
+
+                // Try to find radio buttons by name for radio group updates
+                if (typeof value === 'string') {
+                    const radioButtons = document.querySelectorAll(`input[name="${componentId}"]`);
+                    if (radioButtons.length > 0) {
+                        radioButtons.forEach(radio => {
+                            radio.checked = (radio.value === value);
+                        });
+                        console.log(`Updated radio group ${componentId} to value: ${value}`);
+                        return;
+                    }
+                }
+                console.warn(`Component with ID ${componentId} not found`);
+            }
+        }        // Initialize sliders with value display
+        function initializeSliders() {
+            const sliders = document.querySelectorAll('input[type="range"]');
+            console.log(`Found ${sliders.length} sliders to initialize`);
+
+            sliders.forEach(slider => {
+                console.log(`Initializing slider with ID: ${slider.id}`);
+
+                // Check if slider already has a container (from server-side rendering)
+                if (slider.parentElement.classList.contains('slider-container')) {
+                    // Slider already has container, just add event listener
+                    const valueDisplay = document.getElementById(slider.id + '_value');
+                    if (valueDisplay) {
+                        console.log(`Found value display for ${slider.id}, adding event listener`);
+                        // Add event listener to update value
+                        slider.addEventListener('input', function () {
+                            console.log(`Slider ${this.id} changed to: ${this.value}`);
+                            valueDisplay.textContent = this.value;
+                        });
+                        // Set initial value
+                        valueDisplay.textContent = slider.value;
+                    } else {
+                        console.warn(`No value display found for slider ${slider.id}`);
+                    }
+                } else {
+                    // Legacy support: Create container for sliders without one
+                    console.log(`Creating container for slider ${slider.id}`);
+                    const container = document.createElement('div');
+                    container.className = 'slider-container';
+
+                    const valueDisplay = document.createElement('span');
+                    valueDisplay.className = 'slider-value';
+                    valueDisplay.textContent = slider.value;
+                    valueDisplay.id = slider.id + '_value';
+
+                    slider.parentNode.insertBefore(container, slider);
+                    container.appendChild(slider);
+                    container.appendChild(valueDisplay);
+
+                    // Add event listener to update value
+                    slider.addEventListener('input', function () {
+                        console.log(`Slider ${this.id} changed to: ${this.value}`);
+                        valueDisplay.textContent = this.value;
+                    });
+                }
+            });
+        }        // Auto-focus first input and initialize sliders
+        window.addEventListener('load', function () {
+            // Restore form data first
+            restoreFormData();
+
+            // Setup navigation links for state preservation
+            setupNavigationLinks();
+
+            // Start auto-save (save every 2 seconds)
+            autoSaveInterval = setInterval(autoSaveFormData, 2000);
+
+            // Also save on form changes
+            const inputs = document.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('change', function () {
+                    // Debounce auto-save to avoid excessive calls
+                    clearTimeout(this.saveTimeout);
+                    this.saveTimeout = setTimeout(autoSaveFormData, 500);
+                });
+
+                // For text inputs, also save on input (typing)
+                if (input.type === 'text' || input.type === 'email' || input.type === 'number') {
+                    input.addEventListener('input', function () {
+                        clearTimeout(this.saveTimeout);
+                        this.saveTimeout = setTimeout(autoSaveFormData, 1000);
+                    });
+                }
+            });
+
+            const firstInput = document.querySelector('input[type="text"], input[type="email"], input[type="password"], input[type="number"]');
+            if (firstInput) {
+                firstInput.focus();
+            }
+
+            // Initialize sliders with value display
+            initializeSliders();
+
+            // Debug: Log all file inputs on page load
+            const fileInputs = document.querySelectorAll('input[type="file"]');
+            console.log('File inputs found:', fileInputs.length);
+            fileInputs.forEach((input, index) => {
+                console.log(`File input ${index}:`, input.id, input);
+            });
+
+            console.log('State preservation system initialized');
+        });
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function () {
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
+            }
+            // Final save before leaving
+            autoSaveFormData();
+        });// File upload handling functions
+        function handleFileSelect(event, uploadId) {
+            const files = event.target.files;
+            displayFiles(files, uploadId);
+        }
+
+        function displayFiles(files, uploadId) {
+            const fileList = document.getElementById(`${uploadId}_files`);
+            fileList.innerHTML = '';
+
+            Array.from(files).forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span>${file.name} (${formatFileSize(file.size)})</span>
+                    <button class="file-remove" onclick="removeFile(this, '${uploadId}', ${index})">×</button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function removeFile(button, uploadId, index) {
+            button.parentElement.remove();
+        }
+
+        {% block extra_js %} {% endblock %}
+    </script>
+    {% endblock %}
+</body>
+
+</html>

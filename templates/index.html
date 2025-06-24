@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+{{ grid_content|safe }}
+{% endblock %}
+
+{% block extra_css %}
+/* Additional CSS specific to the index page can go here */
+{% endblock %}
+
+{% block extra_js %}
+/* Additional JavaScript specific to the index page can go here */
+{% endblock %}

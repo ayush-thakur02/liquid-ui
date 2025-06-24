@@ -1,0 +1,72 @@
+{
+  "name_input": {
+    "value": "",
+    "type": "input",
+    "timestamp": 1750660877.8836567
+  },
+  "email_input": {
+    "value": "",
+    "type": "input",
+    "timestamp": 1750660877.8836567
+  },
+  "age_input": {
+    "value": "",
+    "type": "input",
+    "timestamp": 1750660877.8836567
+  },
+  "password_input": {
+    "value": "",
+    "type": "input",
+    "timestamp": 1750660877.8836567
+  },
+  "volume_slider": {
+    "value": "50",
+    "type": "input",
+    "timestamp": 1750660892.6915877
+  },
+  "temp_slider": {
+    "value": "20",
+    "type": "input",
+    "timestamp": 1750660892.6915877
+  },
+  "progress_slider": {
+    "value": "75",
+    "type": "input",
+    "timestamp": 1750660892.6915877
+  },
+  "opacity_slider": {
+    "value": "0.8",
+    "type": "input",
+    "timestamp": 1750660892.6915877
+  },
+  "newsletter_cb": {
+    "value": false,
+    "type": "checkbox",
+    "timestamp": 1750660892.6915877
+  },
+  "notifications_cb": {
+    "value": true,
+    "type": "checkbox",
+    "timestamp": 1750660892.6915877
+  },
+  "darkmode_cb": {
+    "value": false,
+    "type": "checkbox",
+    "timestamp": 1750660892.6915877
+  },
+  "terms_cb": {
+    "value": false,
+    "type": "checkbox",
+    "timestamp": 1750660892.6915877
+  },
+  "marketing_cb": {
+    "value": false,
+    "type": "checkbox",
+    "timestamp": 1750660892.6915877
+  },
+  "autosave_cb": {
+    "value": true,
+    "type": "checkbox",
+    "timestamp": 1750660892.6915877
+  }
+}
